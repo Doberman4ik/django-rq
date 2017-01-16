@@ -1,7 +1,9 @@
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.utils import six
 
 import redis
+from rq.utils import import_attribute
 from rq.queue import FailedQueue, Queue
 
 from django_rq import thread_queue
@@ -20,6 +22,22 @@ def get_commit_mode():
     """
     RQ = getattr(settings, 'RQ', {})
     return RQ.get('AUTOCOMMIT', True)
+
+
+def get_queue_class(config):
+    """
+    Return queue class from config or from RQ settings, otherwise return DjangoRQ
+    """
+    RQ = getattr(settings, 'RQ', {})
+    queue_class = DjangoRQ
+    if 'QUEUE_CLASS' in config:
+        queue_class = config.get('QUEUE_CLASS')
+    elif 'QUEUE_CLASS' in RQ:
+        queue_class = RQ.get('QUEUE_CLASS')
+
+    if isinstance(queue_class, six.string_types):
+        queue_class = import_attribute(queue_class)
+    return queue_class
 
 
 class DjangoRQ(Queue):
@@ -119,7 +137,9 @@ def get_queue(name='default', default_timeout=None, async=None,
     if default_timeout is None:
         default_timeout = QUEUES[name].get('DEFAULT_TIMEOUT')
 
-    return DjangoRQ(name, default_timeout=default_timeout,
+    queue_class = get_queue_class(QUEUES[name])
+
+    return queue_class(name, default_timeout=default_timeout,
                     connection=get_connection(name), async=async,
                     autocommit=autocommit)
 
@@ -132,7 +152,10 @@ def get_queue_by_index(index):
     config = QUEUES_LIST[int(index)]
     if config['name'] == 'failed':
         return FailedQueue(connection=get_redis_connection(config['connection_config']))
-    return DjangoRQ(
+
+    queue_class = get_queue_class(config)
+
+    return queue_class(
         config['name'],
         connection=get_redis_connection(config['connection_config']),
         async=config.get('ASYNC', True))
