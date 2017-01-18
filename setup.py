@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='django-rq',
-    version='0.9.1a',
+    version='0.9.1b',
     author='Selwin Ong',
     author_email='selwin.ong@gmail.com',
     packages=['django_rq'],

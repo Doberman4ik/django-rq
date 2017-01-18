@@ -4,6 +4,7 @@ import logging
 from optparse import make_option
 
 from django.core.management.base import BaseCommand
+from django.conf import settings
 
 from django_rq.queues import get_queues
 from django_rq.workers import get_exception_handlers
@@ -89,7 +90,14 @@ class Command(BaseCommand):
 
         try:
             # Instantiate a worker
-            worker_class = import_attribute(options.get('worker_class', 'rq.Worker'))
+            RQ = getattr(settings, 'RQ', {})
+            worker_class_name = 'rq.Worker'
+            if 'worker_class' in options:
+                worker_class_name = options.get('worker_class')
+            elif 'WORKER_CLASS' in RQ:
+                worker_class_name = RQ.get('WORKER_CLASS')
+
+            worker_class = import_attribute(worker_class_name)
             queues = get_queues(*args)
             w = worker_class(
                 queues,
