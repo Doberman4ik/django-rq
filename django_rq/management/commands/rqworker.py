@@ -53,7 +53,7 @@ class Command(BaseCommand):
             '--worker-class',
             action='store',
             dest='worker_class',
-            default='rq.Worker',
+            default=None,
             help='RQ Worker class to use'
         ),
         make_option(
@@ -91,11 +91,12 @@ class Command(BaseCommand):
         try:
             # Instantiate a worker
             RQ = getattr(settings, 'RQ', {})
-            worker_class_name = 'rq.Worker'
-            if 'worker_class' in options:
+            if options.get('worker_class'):
                 worker_class_name = options.get('worker_class')
             elif 'WORKER_CLASS' in RQ:
                 worker_class_name = RQ.get('WORKER_CLASS')
+            else:
+                worker_class_name = 'rq.Worker'
 
             worker_class = import_attribute(worker_class_name)
             queues = get_queues(*args)
